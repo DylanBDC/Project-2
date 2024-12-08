@@ -85,22 +85,22 @@ while True:
     # try and except to see if the client disconnects
     try:
         s.connect((host, port))
-        
+        iterations=0 #count
         # loop to keep sending data
-        while True:
+        for i in range(5): # using 5 for now instead of 50
             # real time values of server
             core = RPi_temp()
             volts = RPi_volts()
             core_clock = Core_clock()
             Gpu_clock = Gpu_core()
             video_voltage = VideoCore_voltage()
-            
+            iterations= iterations+1
             # dictionary for the real time values (with a key and its value)  
-            jsonResult = {"Temperature": core, "Voltage": volts, "core-clock": core_clock, "GPU-Clock": Gpu_clock, "Video-voltage": video_voltage}
+            jsonResult = {"Temperature": core, "Voltage": volts, "core-clock": core_clock, "GPU-Clock": Gpu_clock, "Video-voltage": video_voltage, "Iterations": iterations}
             jsonResult = json.dumps(jsonResult) # used to serialize the Python object and write it to the JSON file
             jsonbyte = bytes(jsonResult, "utf-8") # encodes the data (send as bytes)
             s.send(jsonbyte) # sends data as a byte type
-            time.sleep(1) # used to slow down or speed up the data being sent
+            time.sleep(2) # used to slow down or speed up the data being sent (set to 2 second intervals)
             #print(jsonbyte) # optional printout to see data flow (i used it for testing(logging))
             
     except ConnectionResetError: # if the client disconnects then the program will stop sending data
@@ -114,8 +114,12 @@ while True:
         print("Server Shutting down")
         c.close()
         exit(1)
-    finally:
-        print("lost connection") # if the connection is lost the client will exit
-        s.close()
+    except OSError:
+        print("Server already connected")
+        s.close
         exit(1)
+    finally:
+        print("50 iterations sent") # if the connection is lost the client will exit
+        s.close()
+        exit(0)
     
