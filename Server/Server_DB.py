@@ -26,23 +26,39 @@ s.bind((host, port))
 s.listen(5)
 print("server active ctrl-c to shut down") # displays if the server has been turned on
 
-# sg.theme('DarkAmber') # Add a touch of color
-# # All the stuff inside your window.
-# layout = [	 [sg.Text('Central Terminal')], # change text to ask the user to enter a date
-#             [sg.Text('Core Temperature:'), sg.Text(f"Core Temperature: {data['Temperature']}°C")], # show the user the desired date format
-#             [sg.Button('Ok'), sg.Button('Cancel')] ]
+def __init__():
+    '''
+    initiates the data being sent with a default value
+    '''
+    data = {"Temperature": 0, "Voltage": 0, "core-clock": 0, "GPU-Clock": 0, "Video-voltage": 0, "Iterations": 0}
+    return data
+
+sg.theme('DarkAmber') # Add a touch of color
+# All the stuff inside your window.
+layout = [	 [sg.Text('RPi Data')], # change text to ask the user to enter a date
+            [sg.Text(f"Core Temperature: {__init__()['Temperature']}°C", key='Temp')], # show the user the desired date format
+            [sg.Text(f"Voltage: {__init__()['Voltage']}V", key= 'Voltage')],
+            [sg.Text(f"Core Clock: {__init__()['core-clock']}GHz", key= 'Core')],
+            [sg.Text(f"GPU Clock: {__init__()['GPU-Clock']}GHz", key= 'GPU')],
+            [sg.Text(f"Video Core Voltage: {__init__()['Video-voltage']}V", key= 'Video')],
+            [sg.Text(f"Iteration: {__init__()['Iterations']}", key= 'iteration')],
+            [sg.Button('EXIT')] ]
 # Create the Window
+window = sg.Window('RPi Data', layout) # added my name to the title
 
-
-
+# try to connect to server (if it doesnt connect it will close and print lost connection)
 while True:
 #     c, addr = s.accept()
 #     print ('Got connection from',addr)
-    #window = sg.Window('Central Guard Station', layout) # added my name to the title
+    
     try:
         c, addr = s.accept()
         print ('Got connection from',addr)
         while True:
+            event, values = window.read(1)
+    
+            if event in (sg.WIN_CLOSED, 'EXIT'):
+                window.close()
             try:
                 encoded_string = c.recv(1024)
                 decoded_string = encoded_string.decode('utf-8') # decode the string
@@ -64,8 +80,20 @@ while True:
                 print("Video Core Voltage:", video_voltage, "V")
                 print(iterations)
                 print("") # added a space between updates
+                
+
+                window['Temp'].update(f"Core Temperature: {data['Temperature']}°C")
+                window['Voltage'].update(f"Voltage: {data['Voltage']}V")
+                window['Core'].update(f"Core Clock: {data['core-clock']}GHz")
+                window['GPU'].update(f"GPU Clock: {data['GPU-Clock']}GHz")
+                window['Video'].update(f"Video Core Voltage: {data['Video-voltage']}V")
+                window['iteration'].update(f"Iteration: {data['Iterations']}")
+                
+                
+                #window = sg.Window('RPi Data', layout) # added my name to the title
             except:
                 print("all data sent")
+                window.close()
                 break
 
     except ConnectionResetError: # if the client disconnects then the program will stop sending data
