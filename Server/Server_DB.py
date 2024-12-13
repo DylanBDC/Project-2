@@ -16,36 +16,35 @@ import socket
 import json
 import PySimpleGUI as sg
 import time
-from random import randint as randint
-
-
 
 
 def initiate():
     """initiates the data being sent with a default value"""
     data = {"Temperature": 0, "Voltage": 0, "core-clock": 0, "GPU-Clock": 0, "Video-voltage": 0, "Iterations": 0}
     return data
+
 def LED(color, key):
     """information for the LED"""
     return sg.Text('\u25EF', text_color=color, key=key)
-#def LED_blink():
 
 def main():
     """main program which runs the GUI and receives data"""
     s = socket.socket()
-    host = '127.0.0.1'
+    host = '127.0.0.1' # local
     #host = '10.0.0.180'
     port = 5000
     try:
         s.bind((host, port))
         s.listen(5)
+        print("server active ctrl-c to shut down") # displays if the server has been turned on
     except OSError:
-        print("slow down you are moving too fast")
-        print("please try again")
-    print("server active ctrl-c to shut down") # displays if the server has been turned on
+        print("please try again socket in use") # if the port is in use it will close the socket and exit
+        s.close()
+        exit(22)
+    
     sg.theme('DarkAmber') # Add a touch of color
     # All the stuff inside your window.
-    layout = [	 [sg.Text('RPi Data'), LED('Red', '-LED0-')], # change text to ask the user to enter a date
+    layout = [	[sg.Text('RPi Data'), LED('Red', '-LED0-')], # change text to ask the user to enter a date
                 [sg.Text("Core Temperature:"), sg.Text(f"{initiate()['Temperature']}", key='Temp'), sg.Text("°C")], # show the user the desired date format
                 [sg.Text(f"Voltage: {initiate()['Voltage']}V", key= 'Voltage')],
                 [sg.Text(f"Core Clock: {initiate()['core-clock']}GHz", key= 'Core')],
@@ -58,19 +57,17 @@ def main():
     Led_state = True # start the Led off as true and keep toggling 
     # try to connect to server (if it doesnt connect it will close and print lost connection)
     while True:
-    #     c, addr = s.accept()
-    #     print ('Got connection from',addr)
-
         event, values = window.read(100) # waiting for connection displaying default values
         if event in (sg.WIN_CLOSED, 'EXIT'):
             window.close()
             break
+        # try to connect
         try:
             c, addr = s.accept()
             print ('Got connection from',addr)
+            # loop to update data and GUI
             while True:
                 event, values = window.read(100)
-        
                 if event in (sg.WIN_CLOSED, 'EXIT'):
                     window.close()
                     exit(1)
@@ -80,6 +77,7 @@ def main():
                     encoded_string = c.recv(1024)
                     decoded_string = encoded_string.decode('utf-8') # decode the string
                     data = json.loads(decoded_string) # converts the json string into a python object
+                    # optional data printout for the terminal
 #                     # access the dictionary values
 #                     core = data["Temperature"]
 #                     volts = data["Voltage"]
@@ -97,7 +95,6 @@ def main():
 #                     print("Video Core Voltage:", video_voltage, "V")
 #                     print(iterations)
 #                     print("") # added a space between updates
-                    
 
                     window['Temp'].update(f"{data['Temperature']}")
                     window['Voltage'].update(f"Voltage: {data['Voltage']}V")
@@ -105,7 +102,7 @@ def main():
                     window['GPU'].update(f"GPU Clock: {data['GPU-Clock']}GHz")
                     window['Video'].update(f"Video Core Voltage: {data['Video-voltage']}V")
                     window['iteration'].update(f"Iteration: {data['Iterations']}")
-                    #window[f'-LED{0}-'].update('\u2B24' if randint(1, 2) == 2 else '\u25EF')
+                    
                     if Led_state:
                         window[f'-LED{0}-'].update('\u2B24')
                         
@@ -114,29 +111,26 @@ def main():
                         
                     Led_state = not Led_state # changes the state of the LED in each loop (blinks the LED)
                     
-                    
-                    #window = sg.Window('RPi Data', layout) # added my name to the title
-                except:
-                    print("all data sent")
-                    #window.close() # when all the data has been sent it will close the window and exit
-                    #exit()
+                except: # when data stops being sent the light turns off and exits the loop (waits foe another connection)
+                    print("done")
                     window[f'-LED{0}-'].update('\u25EF') # when all data has been sent turn off LED
                     break
 
         except (ConnectionResetError, BrokenPipeError): # if the client disconnects then the program will stop sending data
             print("the client has disconnected")
-            c.close()
+            s.close()
         except OSError:
             print("Error connecting socket already in use")
-            c.close
+            s.close
             exit(2)
         except KeyboardInterrupt: # press ctrl-c to exit the program
             print("")
             print("Server Shutting down")
-            c.close()
+            s.close()
             exit(1)
     window.close()        
         
+# main guard
 if __name__ == "__main__":
     main()
 
