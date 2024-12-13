@@ -1,6 +1,6 @@
 # Dylan Brett (100933134)
 # TPRG-2131-02
-# Dec 7, 2024
+# Dec 13, 2024
 # This program is strictly my own work. Any material
 # beyond course learning materials that is taken from
 # the Web or other sources is properly cited, giving
@@ -21,25 +21,49 @@
 import socket
 import os, time
 import json
+import PySimpleGUI as sg
+import threading
+from pathlib import Path
 
 
-# Runs on PC, directly from Thonny
+# Runs on Pi, directly from Thonny
 # The client
 print("Client ready ctrl-c to exit")
 s = socket.socket()
 host = '127.0.0.1' # Localhost (server IP)
+#host = '10.160.41.223'
 port = 5000
+sg.theme('DarkAmber')
 
+layout = [	 [sg.Text('Connection status'), sg.Text('\u25EF', text_color='Red', key='-LED0-')],
+             [sg.Button('EXIT')]]
 
+window = sg.Window('RPi Data', layout)
 
-
+#def IS_RPI():
+try:
+    cpuinfo = Path('/proc/cpuinfo').read_text()
+    if 'BCM' in cpuinfo:
+        print('is a RPi') # RPi proc is the BCM2835 (should pretty much only be for the RPi)
+    else:
+        print('not a RPi')
+        exit(1)
+except FileNotFoundError:
+    print('not a RPi')
+    exit(2)
+        
+#def connection_status():
+    #while True:
+        
+    #print(cpuinfo)
+    
 def RPi_temp():
     '''
     This def gets the Temperature of the RPis core
     '''
     #gets the Core Temperature from Pi, ref https://github.com/nicmcd/vcgencmd/blob/master/README.md
     core = os.popen('vcgencmd measure_temp').readline() #gets from the os, using vcgencmd - the core-temperature
-    core_temp = core.strip('temp=') # remove unwanted text using .strip (already rounded to one decimal place)
+    core_temp = round(float(core.strip('temp=').replace("'C", "")), 1) # remove unwanted text using .strip (already rounded to one decimal place)
     return core_temp
 
 def RPi_volts():
@@ -79,47 +103,81 @@ def VideoCore_voltage():
     video = os.popen('vcgencmd measure_volts core').readline() #gets from the os, using vcgencmd
     video_voltage = round(float(video.strip('volt=').replace('V', '')), 1) # remove unwanted text using .strip and .replace and round to one decimal place
     return video_voltage
+# def LED_blink():
+#     Led_state = True
+#     while True:
+#         
+#         time.sleep(1)
+#         Led_state = not Led_state # changes the state of the LED in each loop (blinks the LED)
+#         
+# blinkthread = threading.Thread(target=LED_blink)
+# blinkthread.start()
 
-# loop to keep connecting to clients
-while True:
-    # try and except to see if the client disconnects
-    try:
-        s.connect((host, port))
-        iterations=0 #count
-        # loop to keep sending data
-        for i in range(5): # using 5 for now instead of 50
-            # real time values of server
-            core = RPi_temp()
-            volts = RPi_volts()
-            core_clock = Core_clock()
-            Gpu_clock = Gpu_core()
-            video_voltage = VideoCore_voltage()
-            iterations= iterations+1
-            # dictionary for the real time values (with a key and its value)  
-            jsonResult = {"Temperature": core, "Voltage": volts, "core-clock": core_clock, "GPU-Clock": Gpu_clock, "Video-voltage": video_voltage, "Iterations": iterations}
-            jsonResult = json.dumps(jsonResult) # used to serialize the Python object and write it to the JSON file
-            jsonbyte = bytes(jsonResult, "utf-8") # encodes the data (send as bytes)
-            s.send(jsonbyte) # sends data as a byte type
-            time.sleep(2) # used to slow down or speed up the data being sent (set to 2 second intervals)
-            #print(jsonbyte) # optional printout to see data flow (i used it for testing(logging))
+
+# def connection_status():
+#     
+#     while (connection):
             
-    except ConnectionResetError: # if the client disconnects then the program will stop sending data
-        print("the client has disconnected")
-        c.close()
-    except BrokenPipeError: # when the client disconnects using ctrl-c will stop sending the data
-        print("the client has disconnected")
-        c.close()
-    except KeyboardInterrupt: # press ctrl-c to exit the program
-        print("")
-        print("Server Shutting down")
-        c.close()
-        exit(1)
-    except OSError:
-        print("Server already connected")
-        s.close
-        exit(1)
-    finally:
-        print("50 iterations sent") # if the connection is lost the client will exit
-        s.close()
-        exit(0)
+            
+Led_state = True
+# try and except to see if the client disconnects
+try:
+    s.connect((host, port))
+    print("connecting")
+    print(s.connect)
+    #print(IS_RPI())
+    iterations=0 #count
     
+    # loop to keep sending data
+    for i in range(5): # using 5 for now instead of 50
+        
+        # real time values of server
+        event, values = window.read(100)
+        if event in (sg.WIN_CLOSED, 'EXIT'):
+            window.close()
+            break
+        core = RPi_temp()
+        volts = RPi_volts()
+        core_clock = Core_clock()
+        Gpu_clock = Gpu_core()
+        video_voltage = VideoCore_voltage()
+        iterations= iterations+1
+        if Led_state:
+            window[f'-LED{0}-'].update('\u2B24')
+                    
+        else:
+            window[f'-LED{0}-'].update('\u25EF')
+            
+        Led_state = not Led_state
+        # dictionary for the real time values (with a key and its value)  
+        jsonResult = {"Temperature": core, "Voltage": volts, "core-clock": core_clock, "GPU-Clock": Gpu_clock, "Video-voltage": video_voltage, "Iterations": iterations}
+        jsonResult = json.dumps(jsonResult) # used to serialize the Python object and write it to the JSON file
+        jsonbyte = bytes(jsonResult, "utf-8") # encodes the data (send as bytes)
+        s.sendall(jsonbyte) # sends data as a byte type
+        time.sleep(2) # used to slow down or speed up the data being sent (set to 2 second intervals)
+        #print(jsonbyte) # optional printout to see data flow (i used it for testing(logging))
+        
+        if iterations == 5:
+            print('All 50 iterations sent')
+            window[f'-LED{0}-'].update('\u25EF')
+        #window.close() 
+except (ConnectionResetError, BrokenPipeError): # if the client disconnects then the program will stop sending data
+    print("lost connection")
+    window[f'-LED{0}-'].update('\u25EF')
+    s.close()
+except KeyboardInterrupt: # press ctrl-c to exit the program
+    print("")
+    print("Client Shutting down")
+    s.close()
+    exit(1)
+except OSError:
+    print("Cant connect")
+    s.close()
+    exit(1)
+except:
+    print("couldnt connect")
+# finally:
+#     #print("50 iterations sent") # if the connection is lost the client will exit
+#     s.close()
+#     exit(0)
+  
