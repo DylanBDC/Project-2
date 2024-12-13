@@ -2,10 +2,12 @@
 
 Description:
 
-The server file was designed to display any RPI data that connects to the server using the client for up to 50 iterations. After the 50 iterations the server will wait for a new connection until it is shut down.
-The client of this program was designed to display the connection status to the server and collect the data to be sent to the server for display. When the server isnt active the client wont activate and will exit
+The server file was designed to display any RPI data that connects to the server using the client for up to 50 iterations (displayed as iterations in the GUI). After the 50 iterations, the server waits for a new connection until it shuts down. When the server is closed ('EXIT'), the client will remain shown, but the connection status LED will stop blinking, which shows that it has lost connection (it also prints a lost connection message in the terminal).
+The client of this program was designed to display the connection status to the server and collect data to be sent to the server for display. When the server isn't active (initially), the client will not activate and will exit.
+
 
 How to use:
+
 First, run the server and then run the client. The client should connect to the server fast and start sending data displayed in the GUI (ensure the right Address and port are used)
 
 
